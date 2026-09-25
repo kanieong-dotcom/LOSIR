@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>盧瑟福 α 粒子散射實驗與探究分析 (iPad 優化版)</title>
+<style>
+  :root {
+    --bg-dark: #07090e;
+    --panel-bg: rgba(18, 24, 38, 0.85);
+    --border-color: rgba(56, 189, 248, 0.35);
+    --cyan: #38bdf8;
+    --green: #4ade80;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --text-main: #f1f5f9;
+    --text-muted: #94a3b8;
+  }
+  
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  
+  body, html {
+    width: 100%; height: 100%; overflow: hidden; background-color: var(--bg-dark); color: var(--text-main);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
+    touch-action: none; 
+    -webkit-text-size-adjust: 100%;
+  }
+
+  #webgl-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; touch-action: none; }
+
+  /* 3D 場景文字標籤 */
+  .scene-label {
+    position: absolute; background: rgba(15, 23, 42, 0.7); border: 1px solid var(--cyan);
+    color: var(--cyan); padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: bold;
+    pointer-events: none; transform: translate(-50%, -50%); backdrop-filter: blur(4px); transition: opacity 0.1s;
+    z-index: 5; white-space: nowrap; box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+  }
+
+  #experiment-hud {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 10; pointer-events: none; display: flex; flex-direction: column; padding: 16px;
+  }
+  
+  .interactive { pointer-events: auto; }
+
+  header {
+    background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px;
+    padding: 16px 24px; backdrop-filter: blur(12px); display: flex; justify-content: space-between; align-items: center;
+    gap: 16px; flex-wrap: wrap;
+  }
+  .brand h1 { font-size: 20px; color: var(--cyan); margin-bottom: 6px; }
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+  /* 醒目版權宣告區塊樣式 */
+  .copyright-card {
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid var(--cyan);
+    border-left: 4px solid var(--cyan);
+    border-radius: 8px;
+    padding: 8px 14px;
+    margin-top: 6px;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+    max-width: 580px;
+  }
+  .copyright-card .copyright-en {
+    color: var(--cyan);
+    font-weight: bold;
+    font-size: 13px;
+    letter-spacing: 0.3px;
+  }
+  .copyright-card .copyright-zh {
+    color: #e2e8f0;
+    font-size: 12.5px;
+    margin-top: 2px;
+  }
+
+  /* 加大觸控按鈕 */
+  button {
+    background: rgba(30, 41, 59, 0.85); color: var(--text-main); border: 1px solid var(--border-color);
+    border-radius: 8px; padding: 12px 20px; font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.2s;
+    touch-action: manipulation;
+  }
+  button:hover { background: rgba(56, 189, 248, 0.25); }
+  button:active { transform: scale(0.98); }
+  button.primary { background: #0284c7; border-color: #38bdf8; color: #fff; }
+  button.primary:hover { background: #0369a1; }
+  button.finish-btn { background: #16a34a; border-color: #4ade80; color: #fff; font-size: 18px; padding: 14px 24px; box-shadow: 0 0 15px rgba(74, 222, 128, 0.4); width: 100%; }
+  button.finish-btn:hover { background: #15803d; }
+
+  .side-panel {
+    position: absolute; right: 16px; top: 120px; width: 340px; background: var(--panel-bg);
+    border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; pointer-events: auto;
+  }
+  .stats-grid { display: flex; flex-direction: column; gap: 12px; font-size: 15px; margin-top: 16px; margin-bottom: 24px; }
+  .stat-row { display: grid; grid-template-columns: 110px 1fr 80px; align-items: center; gap: 10px; }
+  .progress-bg { height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; }
+  .progress-fill { height: 100%; border-radius: 5px; transition: width 0.3s; }
+
+  /* 彈窗與畫面面板 */
+  #quiz-screen, #summary-screen, #explanation-screen {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #0f172a; display: none; z-index: 100;
+  }
+  
+  #quiz-screen { padding: 24px; gap: 24px; align-items: stretch; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .quiz-left { flex: 1; background: #1e293b; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 16px; border: 1px solid #334155; }
+  .screenshot-box { flex: 1; background: #000; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); min-height: 250px; }
+  .screenshot-box img { width: 100%; height: 100%; object-fit: contain; }
+  .data-box { background: #0f172a; padding: 20px; border-radius: 8px; font-size: 16px; }
+  .data-box h3 { color: var(--cyan); margin-bottom: 12px; font-size: 18px; }
+  .data-line { display: flex; justify-content: space-between; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #334155; }
+
+  .quiz-right { width: 500px; background: #1e293b; border-radius: 12px; padding: 24px; border: 1px solid #334155; display: flex; flex-direction: column; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .q-badge { display: inline-block; background: rgba(56,189,248,0.2); color: var(--cyan); padding: 6px 14px; border-radius: 14px; font-size: 14px; font-weight: bold; margin-bottom: 16px; align-self: flex-start;}
+  .q-title { font-size: 20px; color: #fff; margin-bottom: 24px; line-height: 1.5; }
+  .opt-btn { text-align: left; padding: 16px; margin-bottom: 12px; font-size: 16px; border-radius: 8px; background: #0f172a; border: 1px solid #334155; color: #e2e8f0; width: 100%; }
+  .opt-btn:hover { border-color: var(--cyan); background: rgba(56,189,248,0.1); }
+  .opt-btn.correct { background: rgba(34,197,94,0.2) !important; border-color: var(--green) !important; color: var(--green) !important; }
+  .opt-btn.wrong { background: rgba(239,68,68,0.2) !important; border-color: var(--red) !important; color: var(--red) !important; }
+  
+  .feedback { margin-top: 16px; padding: 16px; border-radius: 8px; font-size: 16px; display: none; line-height: 1.6; }
+  .feedback.success { background: rgba(34,197,94,0.15); border: 1px solid var(--green); color: #4ade80; display: block; }
+  .feedback.error { background: rgba(239,68,68,0.15); border: 1px solid var(--red); color: #f87171; display: block; }
+  
+  #btnNextQ { margin-top: 24px; padding: 16px; font-size: 18px; display: none; }
+
+  #summary-screen { justify-content: center; align-items: center; padding: 24px; z-index: 200; overflow-y: auto; }
+  .summary-box { background: #1e293b; border: 1px solid var(--border-color); border-radius: 12px; padding: 40px; max-width: 800px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+  .summary-box h2 { color: var(--cyan); margin-bottom: 24px; font-size: 30px; text-align: center; }
+  .summary-box p { font-size: 18px; line-height: 1.6; margin-bottom: 24px; color: #cbd5e1; }
+  .summary-box ul { margin-left: 28px; margin-bottom: 32px; }
+  .summary-box li { font-size: 18px; line-height: 1.8; color: #f1f5f9; margin-bottom: 12px; }
+  .summary-box li strong { color: var(--amber); }
+  .task-box { background: rgba(56,189,248,0.1); border-left: 4px solid var(--cyan); padding: 24px; border-radius: 0 8px 8px 0; margin-bottom: 32px; }
+  .task-box h3 { color: var(--cyan); margin-bottom: 12px; font-size: 22px; }
+
+  #explanation-screen { flex-direction: column; justify-content: center; align-items: center; padding: 24px; z-index: 300; overflow-y: auto; }
+  .exp-box { background: #1e293b; border: 1px solid var(--border-color); border-radius: 12px; padding: 32px; max-width: 900px; width: 100%; text-align: center; }
+  .exp-box h2 { color: var(--amber); margin-bottom: 12px; font-size: 28px; }
+  .exp-box p { color: #cbd5e1; margin-bottom: 24px; font-size: 18px; }
+  #micro-canvas { background: #07090e; border-radius: 8px; border: 1px solid #334155; width: 100%; height: 400px; margin-bottom: 24px; box-shadow: inset 0 0 20px rgba(0,0,0,0.8); touch-action: none; }
+
+  /* 平板 / iPad 媒體查詢響應式設計 */
+  @media (max-width: 1024px) {
+    #quiz-screen { flex-direction: column; }
+    .quiz-right { width: 100%; flex: none; }
+    .quiz-left { flex: none; min-height: 450px; }
+    
+    .side-panel {
+      top: auto; bottom: 16px; right: 16px; left: 16px; width: auto;
+      display: flex; flex-direction: column; z-index: 20;
+    }
+    .stats-grid { flex-direction: row; justify-content: space-around; flex-wrap: wrap; margin-bottom: 16px; }
+    .stat-row { flex: 1; min-width: 180px; }
+  }
+
+  @media (max-width: 768px) {
+    header { flex-direction: column; align-items: stretch; }
+    .actions { justify-content: center; }
+    .stats-grid { flex-direction: column; }
+    .stat-row { min-width: auto; }
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+<!-- 3D 空間與標籤 -->
+<div id="webgl-container"></div>
+<div class="scene-label" id="lbl-emitter">α粒子發射器</div>
+<div class="scene-label" id="lbl-foil">純金箔</div>
+<div class="scene-label" id="lbl-screen">ZnS探測屏</div>
+
+<div id="experiment-hud">
+  <header class="interactive">
+    <div class="brand">
+      <h1>⚛️ 盧瑟福 α 粒子散射實驗</h1>
+      <!-- 醒目版權宣告區塊 -->
+      <div class="copyright-card">
+        <div class="copyright-en">© 2026 Fatima Girls' School. Developed by Mr. Jimmy. All Rights Reserved.</div>
+        <div class="copyright-zh">本系統／文件由 Fatima Girls' School Mr. Jimmy 製作，版權所有，未經許可請勿轉載。</div>
+      </div>
+    </div>
+    <div class="actions">
+      <!-- 新增全螢幕按鈕 -->
+      <button id="btnFullscreen">🔲 全螢幕</button>
+      <button class="primary" id="btnBatch1000">⚡ 發射 1,000 粒</button>
+      <button id="btnAuto">▶ 高速連發</button>
+      <button id="btnReset">🔄 重置</button>
+    </div>
+  </header>
+
+  <div class="side-panel">
+    <div style="font-size:16px; font-weight:bold; color:var(--cyan); margin-bottom:8px;">📊 探測屏螢光落點統計</div>
+    <div style="font-size:14px; color:var(--text-muted);">注：α 粒子本身不可見，請觀察閃光。</div>
+    <div class="stats-grid">
+      <div class="stat-row">
+        <span>屏後方(直穿)</span>
+        <div class="progress-bg"><div class="progress-fill" id="bar0" style="width:0%; background:var(--green);"></div></div>
+        <b id="txt0">0</b>
+      </div>
+      <div class="stat-row">
+        <span>側邊(偏轉)</span>
+        <div class="progress-bg"><div class="progress-fill" id="bar1" style="width:0%; background:var(--amber);"></div></div>
+        <b id="txt1">0</b>
+      </div>
+      <div class="stat-row">
+        <span>屏前方(反彈)</span>
+        <div class="progress-bg"><div class="progress-fill" id="bar2" style="width:0%; background:var(--red);"></div></div>
+        <b id="txt2">0</b>
+      </div>
+    </div>
+    <button class="finish-btn" id="btnFinish">✅ 收集完畢，進入問題分析</button>
+  </div>
+</div>
+
+<div id="quiz-screen">
+  <div class="quiz-left">
+    <div class="screenshot-box"><img id="captureImg" src="" alt="實驗截圖"></div>
+    <div class="data-box">
+      <h3>📊 你的實驗結果數據</h3>
+      <div class="data-line"><span>直穿 (落在屏後方)：</span> <strong id="qData0" style="color:var(--green);">0</strong></div>
+      <div class="data-line"><span>偏轉 (落在側方)：</span> <strong id="qData1" style="color:var(--amber);">0</strong></div>
+      <div class="data-line"><span>反彈 (落在屏前方)：</span> <strong id="qData2" style="color:var(--red);">0</strong></div>
+    </div>
+  </div>
+  <div class="quiz-right">
+    <span class="q-badge" id="qNum">問題 1 / 8</span>
+    <div class="q-title" id="qText">題目載入中...</div>
+    <div id="optContainer"></div>
+    <div id="qFeedback" class="feedback"></div>
+    <button class="primary" id="btnNextQ">下一題 →</button>
+  </div>
+</div>
+
+<div id="summary-screen">
+  <div class="summary-box">
+    <h2>📝 實驗總結與模型建立</h2>
+    <p>根據你的推理，我們得出以下關於原子的重要結論：</p>
+    <ul>
+      <li>大部分 α 粒子直穿，代表原子內部絕大部分是<strong>空曠的空間</strong>。</li>
+      <li>極少數 α 粒子發生大角度反彈，代表原子中心有一個<strong>體積極小</strong>的核心。</li>
+      <li>能排斥帶正電的 α 粒子，代表這個核心也<strong>帶正電</strong>。</li>
+      <li>能反彈高速、重質量的 α 粒子，代表這個核心<strong>集中了幾乎整個原子的質量</strong>（原子核）。</li>
+      <li>而帶負電、質量極小的<strong>電子</strong>，則分佈在原子核外廣大的空曠空間中。</li>
+    </ul>
+    <div class="task-box">
+      <h3>🎯 最終任務：建立原子結構模型</h3>
+      <p style="margin-bottom:0; color:#e0f2fe;">請根據上述的實驗證據，在筆記本上畫出符合這些特徵的<strong>「原子結構模型」</strong>（標示出原子核與電子的相對位置）。</p>
+    </div>
+    <div style="text-align:center;">
+      <button class="primary" onclick="showExplanation()" style="font-size:18px; padding:14px 28px;">🔬 進入微觀實驗解釋 →</button>
+    </div>
+  </div>
+</div>
+
+<div id="explanation-screen">
+  <div class="exp-box">
+    <h2>微觀視角：為甚麼會產生三種不同的軌跡？</h2>
+    <p>α粒子帶正電，原子核也帶正電。根據庫侖定律，兩者越靠近排斥力越大。</p>
+    <canvas id="micro-canvas"></canvas>
+    
+    <!-- 畫面底部版權標示 -->
+    <div style="margin-bottom: 20px; font-size: 13px; color: var(--cyan); opacity: 0.85;">
+      © 2026 Fatima Girls' School. Developed by Mr. Jimmy. All Rights Reserved.<br>
+      本系統／文件由 Fatima Girls' School Mr. Jimmy 製作，版權所有，未經許可請勿轉載。
+    </div>
+
+    <button class="primary" onclick="location.reload()" style="font-size:18px; padding:14px 28px;">🔄 重新開始實驗</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// --- 全局狀態與輔助函式 ---
+const state = { fired: 0, counts: [0, 0, 0], autoFiring: false, batchQueue: 0, qIndex: 0 };
+const $ = s => document.querySelector(s);
+
+function playBeep(freq, type='sine', vol=0.015) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+    osc.type = type; osc.frequency.value = freq;
+    gain.gain.setValueAtTime(vol, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.05);
+  } catch(e) {}
+}
+
+// --- Three.js 3D 模擬環境 ---
+const container = $('#webgl-container');
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x07090e, 0.012);
+
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.position.set(0, 15, 25);
+
+// iPad 鏡頭觸控手勢設定
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.05;
+controls.touches = {
+  ONE: THREE.TOUCH.ROTATE,
+  TWO: THREE.TOUCH.DOLLY_PAN
+};
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+dirLight.position.set(10, 20, 10);
+scene.add(dirLight);
+
+const gridHelper = new THREE.GridHelper(100, 50, 0x38bdf8, 0x1e293b);
+gridHelper.position.y = -5; scene.add(gridHelper);
+
+// --- 建立實驗設備模型 ---
+const DETECT_R = 12;
+const gapAngle = 0.7; 
+const screenGeo = new THREE.CylinderGeometry(DETECT_R, DETECT_R, 6, 64, 1, true, -Math.PI/2 + gapAngle/2, Math.PI*2 - gapAngle);
+const screenMat = new THREE.MeshStandardMaterial({ color: 0x092218, side: THREE.DoubleSide, roughness: 0.2, transparent: true, opacity: 0.7 });
+const detectorScreen = new THREE.Mesh(screenGeo, screenMat);
+scene.add(detectorScreen);
+
+const ringGeo = new THREE.TorusGeometry(DETECT_R, 0.08, 16, 80, Math.PI*2 - gapAngle);
+const ringMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+const ringTop = new THREE.Mesh(ringGeo, ringMat); ringTop.position.y = 3; ringTop.rotation.x = Math.PI/2; ringTop.rotation.z = -Math.PI/2 + gapAngle/2; scene.add(ringTop);
+const ringBottom = ringTop.clone(); ringBottom.position.y = -3; scene.add(ringBottom);
+
+const foilGeo = new THREE.BoxGeometry(0.05, 8, 8);
+const foilMat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0x886600, emissiveIntensity: 0.4, metalness: 1.0, roughness: 0.1 });
+const goldFoil = new THREE.Mesh(foilGeo, foilMat);
+scene.add(goldFoil);
+
+const sourceGroup = new THREE.Group();
+const leadBox = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 6), new THREE.MeshStandardMaterial({ color: 0x334155 }));
+const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.6, 2, 16), new THREE.MeshStandardMaterial({ color: 0x64748b }));
+nozzle.rotation.z = -Math.PI/2; nozzle.position.set(2, 0, 0);
+sourceGroup.add(leadBox); sourceGroup.add(nozzle);
+sourceGroup.position.set(-18, 0, 0); scene.add(sourceGroup);
+
+// --- 粒子系統與運動計算 ---
+const activeParticles = [];
+const flashes = [];
+const hitMarksGroup = new THREE.Group(); scene.add(hitMarksGroup);
+
+const bank = [];
+let seed = 12345; function rand() { seed = (1664525 * seed + 1013904223) >>> 0; return seed / 4294967296; }
+for(let i=0; i<1000; i++) {
+  let cat = (i === 450) ? 2 : (i%150===0 && i!==0) ? 1 : 0; 
+  let deg = cat === 0 ? rand()*6 : cat === 1 ? 15+rand()*60 : 100+rand()*70;
+  bank.push({ cat, deg, sign: rand() < 0.5 ? -1 : 1 });
+}
+
+function spawnParticle() {
+  const data = bank[state.fired % 1000];
+  state.fired++; state.counts[data.cat]++;
+  const pMesh = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({ visible: false }));
+  pMesh.position.set(-16, (Math.random()-0.5)*0.2, (Math.random()-0.5)*0.2);
+  activeParticles.push({ mesh: pMesh, data, vx: 4.5, vy: 0, vz: 0, rad: data.deg * data.sign * Math.PI/180, passed: false, entered: false });
+  scene.add(pMesh); updateStats();
+}
+
+function createHitSpark(pos, isBack) {
+  const innerPos = pos.clone().normalize().multiplyScalar(DETECT_R - 0.15); innerPos.y = pos.y;
+  const flash = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ color: isBack ? 0xff4444 : 0x66ff99, transparent: true, side: THREE.DoubleSide }));
+  flash.position.copy(innerPos); flash.lookAt(0, innerPos.y, 0); scene.add(flash); flashes.push({ mesh: flash, opacity: 1.0 });
+  const mark = new THREE.Mesh(new THREE.SphereGeometry(0.15), new THREE.MeshBasicMaterial({ color: isBack ? 0xff4444 : 0x5ff088 }));
+  mark.position.copy(innerPos); hitMarksGroup.add(mark);
+  if(hitMarksGroup.children.length > 1500) hitMarksGroup.remove(hitMarksGroup.children[0]);
+  playBeep(isBack ? 800 : 300, isBack ? 'square' : 'sine');
+}
+
+function updateStats() {
+  const tot = state.fired;
+  state.counts.forEach((c, i) => {
+    const pct = tot ? (c/tot*100).toFixed(1) : '0';
+    $(`#bar${i}`).style.width = `${pct}%`; $(`#txt${i}`).textContent = `${c} (${pct}%)`;
+  });
+}
+
+const labelData = [
+  { el: $('#lbl-emitter'), pos: new THREE.Vector3(-18, 3, 0) },
+  { el: $('#lbl-foil'), pos: new THREE.Vector3(0, 5.5, 0) },
+  { el: $('#lbl-screen'), pos: new THREE.Vector3(0, 4.5, -12) }
+];
+
+function updateLabels() {
+  labelData.forEach(l => {
+    if(!l.el) return;
+    const v = l.pos.clone().project(camera);
+    if(v.z > 1) { l.el.style.opacity = 0; return; }
+    l.el.style.opacity = 1;
+    l.el.style.left = (v.x * 0.5 + 0.5) * window.innerWidth + 'px';
+    l.el.style.top = (-(v.y * 0.5) + 0.5) * window.innerHeight + 'px';
+  });
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  if (state.batchQueue > 0) { const c = Math.min(state.batchQueue, 40); for(let k=0; k<c; k++) spawnParticle(); state.batchQueue -= c; }
+  if (state.autoFiring) { for(let i=0; i<3; i++) spawnParticle(); }
+
+  for (let i = activeParticles.length - 1; i >= 0; i--) {
+    const p = activeParticles[i];
+    if (!p.passed && p.mesh.position.x >= 0) { p.passed = true; p.vx = 4.5*Math.cos(p.rad); p.vz = -4.5*Math.sin(p.rad); }
+    p.mesh.position.x += p.vx; p.mesh.position.z += p.vz;
+    const dist = Math.hypot(p.mesh.position.x, p.mesh.position.z);
+    if (!p.entered && dist < DETECT_R - 1) p.entered = true;
+    if (p.entered && dist >= DETECT_R) {
+      if (Math.abs(Math.abs(Math.atan2(p.mesh.position.z, p.mesh.position.x)) - Math.PI) >= gapAngle/2) createHitSpark(p.mesh.position, p.data.cat === 2);
+      scene.remove(p.mesh); activeParticles.splice(i, 1);
+    }
+  }
+  for (let i = flashes.length - 1; i >= 0; i--) {
+    flashes[i].opacity -= 0.1; flashes[i].mesh.material.opacity = flashes[i].opacity; flashes[i].mesh.scale.addScalar(0.1);
+    if (flashes[i].opacity <= 0) { scene.remove(flashes[i].mesh); flashes.splice(i, 1); }
+  }
+  controls.update(); renderer.render(scene, camera); updateLabels();
+}
+animate();
+
+// --- 按鈕控制邏輯 ---
+$('#btnBatch1000').onclick = () => { state.batchQueue += 1000; };
+$('#btnAuto').onclick = () => { state.autoFiring = !state.autoFiring; $('#btnAuto').textContent = state.autoFiring ? '⏸ 暫停' : '▶ 高速連發'; };
+$('#btnReset').onclick = () => { state.fired=0; state.counts=[0,0,0]; state.batchQueue=0; hitMarksGroup.clear(); updateStats(); };
+
+// 全螢幕切換邏輯 (相容 iOS / WebKit 及跨瀏覽器)
+const btnFullscreen = $('#btnFullscreen');
+btnFullscreen.onclick = () => {
+  let doc = window.document;
+  let docEl = doc.documentElement;
+
+  let requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+  let cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+
+  if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+    if (requestFullScreen) requestFullScreen.call(docEl);
+  } else {
+    if (cancelFullScreen) cancelFullScreen.call(doc);
+  }
+};
+
+document.addEventListener('fullscreenchange', updateFullscreenButton);
+document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+document.addEventListener('mozfullscreenchange', updateFullscreenButton);
+document.addEventListener('MSFullscreenChange', updateFullscreenButton);
+
+function updateFullscreenButton() {
+  if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) {
+    btnFullscreen.textContent = '🔲 退出全螢幕';
+  } else {
+    btnFullscreen.textContent = '🔲 全螢幕';
+  }
+}
+
+// --- 問答分析邏輯 ---
+const questions = [
+  { q: 'α 粒子是否如「湯姆森模型」預測的一樣，全部順暢穿透並落在屏的後方（直穿區）？', opts: ['是的，100% 全部落在後方。', '不是，絕大多數落在後方，但有極少數落在屏的側邊或前方（反彈）。', '不是，大部份都被反射回來，只有極少數穿透。', '不是，所有粒子都均勻散佈在各個方向。'], ans: 1, why: '正確。實驗發現雖然大多數粒子直穿，但有極少數粒子發生了偏轉甚至反彈，打破了原有的預測。' },
+  { q: '請觀察左側實驗數據與光點截圖，α 粒子的分佈規律為何？', opts: ['均勻散佈在探測屏的所有角度。', '粒子完全隨機分佈，沒有任何規律。', '一半直穿，一半反彈。', '絕大多數集中在屏後方直穿，極少數發生大角度偏轉。'], ans: 3, why: '正確。大於 99% 的粒子幾乎沒有偏轉，僅極微量發生偏折。' },
+  { q: '大部分 α 粒子直穿，但為何會有極少數會落在屏的前方（發生大角度反彈）？', opts: ['因為 α 粒子互相發生了碰撞。', '遇到了原子內部一個極小但帶有強烈排斥力的核心。', '因為金箔表面不平整造成的折射。', '粒子受到重力影響而掉落。'], ans: 1, why: '正確。只有遇到極強的集中作用力，才能讓高速運動的粒子瞬間原路反彈。' },
+  { q: '發生大角度反彈的 α 粒子數量比例是多還是少？', opts: ['很多，佔了一半以上。', '很少，大約佔了 10% 左右。', '極少，大約只有萬分之一。', '沒有任何粒子反彈。'], ans: 2, why: '正確。根據實驗數據，反彈（落在屏前方）的比例極其微小。' },
+  { q: '為甚麼只有「極少數」α 粒子會反彈或折射，這說明了甚麼？', opts: ['說明原子是堅硬的實心球體。', '說明這個核心的體積非常巨大，充滿了整個原子。', '說明原子內部絕大部分是空曠的空間，核心體積極其微小。', '說明金箔太薄了，無法擋住粒子。'], ans: 2, why: '正確！極低的撞擊機率證明了這個核心（原子核）在原子內部只佔了極微小的空間。' },
+  { q: 'α 粒子本身帶正電，根據「同性相斥，異性相吸」的原理，能將其排斥反彈的這個微小核心帶甚麼電？', opts: ['帶負電。', '帶正電。', '不帶電（中性）。', '一半帶正電，一半帶負電。'], ans: 1, why: '正確。只有同為正電，才會產生強烈的庫侖排斥力迫使 α 粒子改變軌跡。' },
+  { q: '要能把高速飛行的重量級 α 粒子完全反彈，這個細小核心的質量如何？', opts: ['質量極小，就像海綿一樣輕。', '質量與電子的質量差不多。', '質量隨時間不斷改變。', '質量極大，幾乎集中了整個原子的質量，極度堅實。'], ans: 3, why: '完全正確！這個體積極小、帶正電且集中幾乎全部質量的核心，就是「原子核」。' },
+  { q: '湯姆森告訴我們「電子」（帶負電）是原子的一部份。既然原子核心帶正電且體積極小，那麼電子最有可能在哪裡？', opts: ['全部擠在核心內部。', '黏在核心的表面上靜止不動。', '散佈在核心外圍廣大的空曠空間中。', '電子其實不存在於原子內。'], ans: 2, why: '正確！既然中心是極小的正電原子核，大部分空間是空的，電子必定是在核外廣大的空間中活動。' }
+];
+
+$('#btnFinish').onclick = () => {
+  if(state.fired < 500) {
+    alert('請先發射足夠的粒子 (建議至少 500 發以上) 再進行分析！');
+    return;
+  }
+  renderer.render(scene, camera); const imgData = renderer.domElement.toDataURL("image/jpeg", 0.9);
+  $('#webgl-container').style.display = 'none'; $('#experiment-hud').style.display = 'none'; 
+  document.querySelectorAll('.scene-label').forEach(el=>el.style.display='none');
+  $('#quiz-screen').style.display = 'flex';
+  $('#captureImg').src = imgData; const tot = state.fired;
+  $('#qData0').textContent = `${state.counts[0]} 粒 (${(state.counts[0]/tot*100).toFixed(1)}%)`;
+  $('#qData1').textContent = `${state.counts[1]} 粒 (${(state.counts[1]/tot*100).toFixed(1)}%)`;
+  $('#qData2').textContent = `${state.counts[2]} 粒 (${(state.counts[2]/tot*100).toFixed(1)}%)`;
+  loadQuestion(0);
+};
+
+function loadQuestion(idx) {
+  state.qIndex = idx; const q = questions[idx];
+  $('#qNum').textContent = `問題 ${idx + 1} / ${questions.length}`; $('#qText').textContent = q.q;
+  const cont = $('#optContainer'); cont.innerHTML = '';
+  q.opts.forEach((opt, i) => {
+    const btn = document.createElement('button'); btn.className = 'opt-btn'; btn.textContent = `${String.fromCharCode(65+i)}. ${opt}`;
+    btn.onclick = () => checkAns(i, btn); cont.appendChild(btn);
+  });
+  $('#qFeedback').className = 'feedback'; $('#qFeedback').style.display = 'none'; $('#btnNextQ').style.display = 'none';
+}
+
+function checkAns(idx, btn) {
+  const q = questions[state.qIndex]; const btns = document.querySelectorAll('.opt-btn');
+  btns.forEach(b => b.style.pointerEvents = 'none'); 
+  if(idx === q.ans) {
+    btn.classList.add('correct'); $('#qFeedback').textContent = '✅ ' + q.why; $('#qFeedback').className = 'feedback success';
+  } else {
+    btn.classList.add('wrong'); btns[q.ans].classList.add('correct'); $('#qFeedback').textContent = '❌ 不正確。 ' + q.why; $('#qFeedback').className = 'feedback error';
+  }
+  if(state.qIndex < questions.length - 1) { $('#btnNextQ').textContent = '下一題 →'; $('#btnNextQ').onclick = () => loadQuestion(state.qIndex + 1); } 
+  else { $('#btnNextQ').textContent = '📊 查看實驗總結與最終任務 →'; $('#btnNextQ').onclick = showSummary; }
+  $('#btnNextQ').style.display = 'block';
+  // iPad 上自動向上滾動以確保看得到下一題按鈕
+  setTimeout(() => { $('#quiz-screen').scrollTop = $('#quiz-screen').scrollHeight; }, 100);
+}
+
+function showSummary() { $('#quiz-screen').style.display = 'none'; $('#summary-screen').style.display = 'flex'; }
+
+// --- 微觀模擬 Canvas 動畫 ---
+function showExplanation() {
+  $('#summary-screen').style.display = 'none';
+  $('#explanation-screen').style.display = 'flex';
+  initMicroSim();
+}
+
+function initMicroSim() {
+  const cvs = $('#micro-canvas'); const ctx = cvs.getContext('2d');
+  cvs.width = cvs.parentElement.clientWidth; cvs.height = 400;
+  
+  let microParticles = [];
+  function resetSim() {
+    microParticles = [
+      { x: 0, y: 80, vx: 5, vy: 0, color: '#4ade80', trail: [], text: '距離遠：直穿' },
+      { x: 0, y: 175, vx: 5, vy: 0, color: '#fbbf24', trail: [], text: '靠近邊緣：受排斥折射' },
+      { x: 0, y: 198, vx: 5, vy: 0, color: '#f87171', trail: [], text: '正中原子核：強烈反彈' }
+    ];
+  }
+  resetSim();
+
+  function renderMicro() {
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, cvs.width, cvs.height);
+    const nx = cvs.width * 0.75, ny = 200, k = 3000; 
+
+    // 繪製原子核
+    ctx.beginPath(); ctx.arc(nx, ny, 16, 0, Math.PI*2);
+    ctx.fillStyle = '#ffd700'; ctx.shadowColor = '#fbbf24'; ctx.shadowBlur = 25; ctx.fill();
+    ctx.shadowBlur = 0; ctx.fillStyle = '#000'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('+', nx, ny);
+
+    microParticles.forEach(p => {
+      let dx = p.x - nx; let dy = p.y - ny;
+      let distSq = dx*dx + dy*dy; let dist = Math.sqrt(distSq);
+
+      if (dist > 8) {
+        let force = k / distSq;
+        p.vx += force * (dx / dist); p.vy += force * (dy / dist);
+      }
+      p.x += p.vx; p.y += p.vy;
+      p.trail.push({x: p.x, y: p.y}); if(p.trail.length > 80) p.trail.shift();
+
+      ctx.beginPath();
+      for(let i=0; i<p.trail.length; i++) { if(i===0) ctx.moveTo(p.trail[i].x, p.trail[i].y); else ctx.lineTo(p.trail[i].x, p.trail[i].y); }
+      ctx.strokeStyle = p.color; ctx.lineWidth = 2; ctx.globalAlpha = 0.5; ctx.stroke(); ctx.globalAlpha = 1.0;
+
+      ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI*2); ctx.fillStyle = p.color; ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = '10px sans-serif'; ctx.fillText('α', p.x, p.y);
+      
+      ctx.fillStyle = p.color; ctx.font = '16px sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText(p.text, p.x + 12, p.y - 12);
+    });
+
+    if(microParticles[0].x > cvs.width + 150 || microParticles[2].x < -150) resetSim();
+    requestAnimationFrame(renderMicro);
+  }
+  renderMicro();
+}
+
+// 螢幕尺寸變更重繪
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight);
+  const cvs = $('#micro-canvas'); if(cvs && cvs.parentElement) cvs.width = cvs.parentElement.clientWidth;
+});
+</script>
+</body>
+</html>
